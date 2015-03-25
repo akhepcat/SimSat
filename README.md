@@ -36,8 +36,10 @@ file with the following:
 This will allow you to use the system normally, as the bridge
 will still receive a local IP address.
 
-if you want to use wlan0 as the upstream interface of your bridge, then you can
-sed 's/wlan0/ethX/g; s/eth0/wlan0/g; s/ethX/wlan0/g;'  on the file
+if you want to use wlan0 as the upstream interface of your bridge, then you can run this snippet
+against your /etc/network/interfaces file:
+
+    sed 's/wlan0/ethX/g; s/eth0/wlan0/g; s/ethX/wlan0/g;'  
 
 the supplied "BridgeMgr"  will attempt to manage the system bridge for you,
 by automatically adding/removing the next available interface from the bridge.
