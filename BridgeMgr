@@ -1,0 +1,82 @@
+#!/bin/bash
+declare -a AVAIL
+declare -a IFACES
+declare -a BRIDGE
+
+usage() {
+	echo "status|show|find -  shows the status of any bridges, assigned, and available interfaces"
+	echo "add              -  adds the next available interface to the default bridge"
+	echo "remove           -  removes the last-added interface from the default bridge"
+	echo "help             -  this crappy help"
+}
+
+
+status() {
+	if [ ${BRNUM:-0} -gt 0 ]
+	then
+		echo "Current bridge(s): ${BRNUM} - ${BRIDGES[*]}"
+		echo "Current bridge interface(s): ${#IFACES[@]} - ${IFACES[*]}"
+	fi
+	echo "Available interface(s): ${#AVAIL[@]} -  ${AVAIL[*]}"
+}
+
+findem () {
+	DEFIF=$(awk 'BEGIN { IGNORECASE=1 } /^[a-z0-9]+[ \t]+00000000/ { print $1 }' /proc/net/route)
+	MyIntIPv4=$(ip -o -4 addr show dev $DEFIF scope global)
+	MyIntIPv4=${MyIntIPv4##*inet }
+	MyIntIPv4=${MyIntIPv4%%/*}
+
+	if [ -n "${DEFIF##*br*}" ]
+	then
+	        DEFIF=""
+	fi
+
+	IFACES=($(brctl show $DEFIF 2>&1 | sed -n 's/.*\(eth[0-9]\+\).*/\1/gp' | tr '\n' ' '))
+	BRIDGES=($(brctl show | sed -n 's/^\(br[0-9]\+\).*/\1/gp'))
+	BRNUM=${#BRIDGES[@]}
+
+	if [ ${BRNUM:-0} -gt 0 ]
+	then
+		FILTER="${IFACES[*]} ${BRIDGES[*]}"
+		FILTER="${FILTER//[[:space:]]/|}"
+
+		AVAIL=($(ip -o link show | grep ether | grep -Evi "$FILTER" | sed -n 's/.*\(eth[0-9]\+\).*/\1/gp' | tr '\n' ' '))
+	else
+		AVAIL=($(ip -o link show | grep ether | sed -n 's/.*\(eth[0-9]\+\).*/\1/gp' | tr '\n' ' '))
+	fi
+}
+
+addbr() {
+	BRIF=$1
+
+        if [ ${BRNUM:-0} -gt 0 ]
+	then
+		echo "Trying to add new interface ${BRIF} to bridge ${BRIDGES[0]}"
+		brctl addif ${BRIDGES[0]} ${BRIF}
+	else
+		echo "no bridges available. check system configuration"
+	fi
+}
+
+rembr() {
+	BRIF=$1
+
+        if [ ${BRNUM:-0} -gt 0 ]
+	then
+		echo "Trying to remove previoius interface ${BRIF} from bridge ${BRIDGES[0]}"
+		brctl delif ${BRIDGES[0]} ${BRIF}
+	else
+		echo "no bridges available. check system configuration"
+	fi
+}
+
+case $1 in
+	status|show|find) findem && status
+		;;
+	add) findem && addbr ${AVAIL[0]} && findem && status
+		;;
+	remove) findem && rembr "${IFACES[${#IFACES[@]} - 1]}" && findem && status
+		;;
+	*) usage
+		;;
+esac

@@ -20,9 +20,8 @@ RATE="100mbit"
 #
 
 DEFIF=$(awk 'BEGIN { IGNORECASE=1 } /^[a-z0-9]+[ \t]+00000000/ { print $1 }' /proc/net/route)
-MyIntIPv4=$(ip -4 addr show dev $DEFIF scope global)
+MyIntIPv4=$(ip -o -4 addr show dev $DEFIF scope global)
 MyIntIPv4=${MyIntIPv4##*inet }
-MyIntIPv4=${MyIntIPv4%%brd*}
 MyIntIPv4=${MyIntIPv4%%/*}
 
 if [ -n "${DEFIF##*br*}" ]
