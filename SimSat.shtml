@@ -1,0 +1,177 @@
+#!/usr/bin/perl
+########################################
+##  Some sane defaults for a "satellite" 
+
+$DELAY="delay 10ms 10ms distribution normal"	# delay across both interfaces is 600ms +/1 20ms with "delay 300ms 10ms" default
+$LOSS="loss 0.000001% 25%"
+$CORRUPT="corrupt 0.000001%"
+$RATE="45mbit"
+
+## Change nothing below
+###########################################################################
+#####################################
+############
+######
+##
+#
+#
+#
+#
+
+$DEFIF=`awk 'BEGIN { IGNORECASE=1 } /^[a-z0-9]+[ \t]+00000000/ { print $1 }' /proc/net/route`;
+$MyIntIPv4=`ip -o -4 addr show dev $DEFIF scope global`;
+$MyIntIPv4 =~ m/*inet (.*)\//;
+
+if [ -n "${DEFIF##*br*}" ]
+then
+	DEFIF=""
+fi
+IFACES=$(brctl show $DEFIF 2>&1 | sed -n 's/.*\(eth[0-9]*\).*/\1/gp' | tr '\n' ' ')
+
+
+
+stop() {
+	for IFACE in $IFACES
+	do
+		IDX=${IFACE//eth/}
+		IDX=$((IDX + 1))	# zero-based indexing to ones-based
+	
+	# remove any old configuration, this removes filters and classes too!
+		tc qdisc del dev $IFACE root >/dev/null 2>&1
+	done
+}
+
+start() {
+	for IFACE in $IFACES
+	do
+		IDX=${IFACE//eth/}
+		IDX=$((IDX + 1))	# zero-based indexing to ones-based
+	
+	# Step one:  add the handle for further work, then build the delay/loss
+		`tc qdisc add dev $IFACE root handle $IDX:0 hfsc default 1`;
+	# Step two:  add the management traffic class
+		`tc class add dev $IFACE parent $IDX:0 classid $IDX:999 hfsc rt m2 100Mbit`;
+	# Step three: add the rate-limiting class for all other bridge traffic
+		`tc class add dev $IFACE parent $IDX:0 classid $IDX:1 hfsc rt m2 $RATE`;
+	# Step four: add the delay, loss, corruption to the bridge
+		`tc qdisc add dev $IFACE parent $IDX:1 handle $((IDX + 9)):0 netem $DELAY $LOSS $CORRUPT`;
+	# Step five: classify management traffic into the appropriate class
+		`tc filter add dev $IFACE parent $IDX:0 handle $((IDX+10)):0 protocol ip u32 match ip dst $MyIntIPv4/32 flowid $IDX:999`;
+		`tc filter add dev $IFACE parent $IDX:0 handle $((IDX+10)):1 protocol ip u32 match ip src $MyIntIPv4/32 flowid $IDX:999`;
+	# Step six: classify all unmatched traffic to the rate-limited flow
+		`tc filter add dev $IFACE parent $IDX:0 handle $((IDX+10)):2 protocol ip prio 9 u32 match u8 0 0 flowid $IDX:1`;
+       done
+}
+
+debug() {
+	for IFACE in $IFACES
+	do
+		IDX=${IFACE//eth/}
+		IDX=$((IDX + 1))	# zero-based indexing to ones-based
+
+	# Step one:  add the handle for further work, then build the delay/loss
+		echo "tc qdisc add dev $IFACE root handle $IDX:0 hfsc default 11";
+	# Step two:  add the management traffic class
+		echo "tc class add dev $IFACE parent $IDX:0 classid $IDX:999 hfsc rt m2 100Mbit";
+	# Step three: add the rate-limiting class for all other bridge traffic
+		echo "tc class add dev $IFACE parent $IDX:0 classid $IDX:1 hfsc rt m2 $RATE";
+	# Step four: add the delay, loss, corruption to the bridge
+		echo "tc qdisc add dev $IFACE parent $IDX:1 handle $((IDX + 10)):0 netem $DELAY $LOSS $CORRUPT";
+	# Step five: classify management traffic into the appropriate class
+		echo "tc filter add dev $IFACE parent $IDX:1 prio 1 protocol ip u32 match ip dst $MyIntIPv4/32 flowid $IDX:999";
+		echo "tc filter add dev $IFACE parent $IDX:1 prio 2 protocol ip u32 match ip src $MyIntIPv4/32 flowid $IDX:999";
+	# Step six: classify all unmatched traffic to the rate-limited flow
+		echo "tc filter add dev $IFACE parent $IDX:1 prio 9 protocol ip u32 match u8 0 0 flowid $IDX:1";
+       done
+}
+
+
+info() {
+	for IFACE in $IFACES
+	do
+		IDX=${IFACE//eth/}
+		IDX=$((IDX + 1))	# zero-based indexing to ones-based
+		echo "${IFACE}:"
+		echo -e "  qdisc:"
+		echo -n "    "
+		tc -p qdisc show dev ${IFACE}
+		echo -e "\n  class:"
+		echo -n "    "
+		tc -p class show dev ${IFACE}
+		echo -e "\n  filter:"
+		echo -n "    $IDX:1 p1:"
+		tc -r filter show dev ${IFACE} parent $IDX:1 prio 1
+		echo -n "    $IDX:1 p2:"
+		tc -r filter show dev ${IFACE} parent $IDX:1 prio 2
+		echo -n "    $IDX:1 p9:"
+		tc -r filter show dev ${IFACE} parent $IDX:1 prio 9
+		echo -e "\n"
+	done
+}
+
+units() {
+	cat <<EOF
+All parameters accept a floating point number, possibly followed by a unit.
+Bandwidths or rates can be specified in:
+kbps			Kilobytes per second
+mbps			Megabytes per second
+kbit			Kilobits per second
+mbit			Megabits per second
+bps or a bare number	Bytes per second
+
+Amounts of data can be specified in:
+kb or k			Kilobytes
+mb or m			Megabytes
+mbit			Megabits
+kbit			Kilobits
+b or a bare number	Bytes.
+
+Lengths of time can be specified in:
+s, sec or secs		Whole seconds
+ms, msec or msecs	Milliseconds
+us, usec, usecs
+   or a bare number	Microseconds.
+
+FORMAT
+The show command has additional formatting options:
+-iec   print rates in IEC units (ie. 1K = 1024).
+-s, -stats, -statistics	Output more statistics about packet usage.
+-d, -details		Output more detailed information about rates and cell sizes.
+-r, -raw		Output raw hex values for handles.
+-p, -pretty		Decode filter offset and mask values to equivalent filter
+			commands based on TCP/IP.
+EOF
+
+}
+
+usage() {
+	echo -e "usage"
+	echo -e "  ${PROG} [arg]"
+	echo -e " \t   stop \t removes the delay, loss, and rate-limiting from the bridge"
+	echo -e " \t  start \t applies the delay, loss, and rate-limiting to the bridge"
+	echo -e " \t  usage \t displays this helpscreen"
+	echo -e " \t status \t shows the current delay, loss, and rate-limiting on the bridge"
+	echo -e " \t  debug \t shows what would be applied to the bridge"
+	echo -e " \t  units \t help for adjusting the parameters"
+	echo -e ""
+	echo -e " \tBRIDGE is currently defined as: ${IFACES}"
+
+}
+
+
+case ${1} in
+	stop) stop
+		;;
+	start) start
+		;;
+	status|info) info
+		;;
+	restart|reload) stop && start
+		;;
+	units) units
+		;;
+	debug) debug
+		;;
+	*) usage
+		;;
+esac

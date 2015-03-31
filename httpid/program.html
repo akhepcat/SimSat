@@ -1,0 +1,637 @@
+<html>
+<head><title>HTTPi Programming Manual</title></head>
+<body bgcolor = "#ffffff" vlink = "#0000ff" link = "#0000ff" text = "#000000">
+<a href ="./"><img src = "pix/httpismall.gif" alt = "[&lt;&lt;]" height = 32
+width = 91 border = 0></a><i>Back to the main page</i>
+<hr>
+<img src = "pix/httpibig.gif" align = right alt = " ">
+<h1>Programming Manual</h1>
+HTTPi was designed first and foremost to be a hacker's webserver that was
+easily understood, easily patched and trivially maintainable -- thus this
+document.
+<p>
+The Programming Manual
+describes HTTPi internals to people interested in writing or patching
+their own applications into HTTPi. <b>Perpetually under construction.
+Additions and suggestions, user patches, etc., are welcomed to the code
+base.</b> However, I or an authorised maintainer reserve the right to choose
+what gets checked in. Remember the philosophy: "more with less" :-)
+<p>
+Send your questions or difficulties to <b><a href =
+"mailto:httpi@floodgap.com">httpi@floodgap.com</a></b>.
+<p>
+<a name = "cnfg"><h3>Getting Started with the
+HTTPi <code>configure</code> Script</h3></a>
+If you didn't read this page thoroughly, you would probably just go to
+where your configure script dropped the Perl executable and merrily edit
+it in-place. And it would probably work, too. Well, I've got three words for
+that:
+<p>
+<b><i>Don't do it!</i></b>
+<p>
+Why?
+If you decide to make configuration changes at a later date, or upgrade
+to a later version of HTTPi, guess what happens to your changes when
+configure runs again? You got it: completely obliterated. That's why
+HTTPi has a primitive <code>make</code> system of sorts built into the
+<code>configure</code> script suite. (Again, please recall there
+are multiple <code>configure</code> scripts; replace
+<code>configure</code> with the appropriate one for your setup.)
+By working in with the configure scripts, you can make changes to your
+heart's content <i>and</i> carry them across configuration changes and
+server updates. <i>So don't edit the HTTPi executable directly!</i>
+<p>
+There are four files in the HTTPi distribution that you need to worry about.
+These files are glommed together at configure-time. (Before HTTPi 1.2,
+everything was in <code>httpi.in</code>. If you are,
+for some pathological reason, patching an old version, then remember that
+all changes must be made there, and that some features might not be
+available to you. After that, but prior to 1.5, also keep in mind that
+the current <code>userfunc.in</code> was also part of <code>httpi.in</code>.)
+The files are:
+<p><ul>
+<li><code>httpi.in</code>, the master server code. Modules maintained
+in the standard distribution, like STATIOS, are also here.
+<li><code>modules.in</code>, the repository for user modules. All user
+modules should be put in this file. You can use this file when you're
+upgrading to keep the same modules in your next build.
+<li><code>uservar.in</code>, the user variables file. Certain configuration
+variables, like the restriction matrix, content types and IP-less
+virtual hosting, are kept here. Again, you can use this file when you're
+upgrading to keep the same settings in your next build.
+<li><code>userfunc.in</code>, the user functions file. Functions
+intentionally declared as user-serviceable live in this file, and you
+can of course add your own global subroutines for your modules or
+HTTPerl-based executables here too. Once again, this can be brought
+forward between builds.
+<p>
+</ul>
+We'll discuss making those changes later. How do you use
+<code>configure</code>?
+<p>
+If you have a settings transcript from a previous run
+of <code>configure</code> (usually named something like
+<code>transcript.0.configure</code>), you can use that to save typing, and
+<code>configure</code> will get its answers from that.
+Just do
+<p>
+<code>% perl configure -d filename</code>
+<p>
+where <code>filename</code> is the transcript file, either one automatically
+made by <code>configure</code>, or one of your own. If you leave out the
+filename, the default answer to questions will be used.
+<i>That's it.</i> (If you
+are using Demonic HTTPi, you will need to kill the old process(es) and
+start the new one for changes to take effect. Don't worry; when
+run in this mode <code>configure</code> doesn't change your <code>inetd</code>
+or <code>xinetd</code> configuration files.)
+<p>
+Otherwise, just run the appropriate configure script as usual and answer
+the necessary questions.
+<p>
+Naturally, none of the <code>*.in</code> files are
+runnable Perl; they're teased and
+twisted by <code>configure</code> into your runtime object, since
+<code>configure</code> actually contains a miniature pre-processor. Lines like
+this:
+<pre>
+~check SOMETHING
+~
+~
+</pre>
+are exactly identical to
+<pre>
+#ifdef SOMETHING
+#else
+#endif
+</pre>
+(except that they can't be nested)
+and have exactly the same semantics as they do in the standard C
+pre-processor. These are used to determine build-time code based on 
+settings you select and on system options (like, for
+example,  whether your system
+supports <code>setruid()</code> -- AIX doesn't, Darwin doesn't
+seem to either, NetBSD does, Linux does).
+There's also a mystical <code>~insert</code> that has similar semantics
+to <code>#include</code>, except that you can't yet nest it either.
+There are also defines in the <code>httpi.in</code> file that
+you should be able to match up with questions asked during the
+<code>configure</code> process. Unless you're a white hat, don't mess
+with them or preprocessor directives.
+<p>
+In short, <code>configure</code> is your <code>make</code> processor.
+Use it, love it. You could modify the script in place, but
+<code>configure</code> is, we think, much friendlier, and you'll thank us
+for it later.
+<p>
+<table width = 100% border = 0 cellpadding = 5 cellspacing = 2><tr>
+<td bgcolor = "#e0e0ff">
+<b>Hint:</b> If you hopelessly destroy your <code>*.in</code> files, the
+<i>real</i> Unix <code>make</code> can rescue you. Assuming the
+<code>stock/</code> directory is still intact, <code>make revert</code>
+will replace all your <code>*.in</code> files with the standard
+distribution versions. Sorry, this works in 1.2 and up only.
+</td></tr></table>
+<a name = "uvar"><h3>Making User Variable Changes</h3></a>
+Several important globals reside in <code>uservar.in</code>. If you want
+to add extra headers, change the MIME types reported for a file
+extension, alter the rules for the <a href = "serve.html#secu">restriction
+matrix</a> or add IP-less
+<a href = "serve.html#htho">virtual hosts</a>, this is the file to
+change. (Before 1.2, these globals were in <code>httpi.in</code>.)
+<p>
+To make these changes, simply edit <code>uservar.in</code> and make
+the needed alterations to the globals. Only these intentionally
+user-configurable globals are kept in this file; all others will be
+in <code>httpi.in</code> and should be reserved for white hats. Then
+run <code>configure</code> again, as described
+<a href = "#cnfg">above</a>, to update your executable.
+<p>
+The list of HTTPi globals is <a href = "#glob">listed later in this
+manual</a>.
+<a name = "hand"><h3>Writing In Your Own Custom Handlers</h3></a>
+<h4>Adding functionality with <code>modules.in</code></h4>
+Adding internal services to HTTPi is very simple to do: simply put them
+into <code>modules.in</code> (before 1.2, into <code>httpi.in</code>). At
+that point the HTTP request has been decoded,
+you have all of the needed globals defined, and you're at the point where
+HTTPi needs to determine what the browser should get back.
+<p>
+For example, if you inserted this snippet of code:
+<pre>
+	if ($address eq "/whoami") {
+		&htsponse(200, "OK");
+		&htcontent(&lt;&lt;"EOF", "text/html");
+&lt;html&gt;
+&lt;body&gt;
+Hello, $variables!
+&lt;/body&gt;
+&lt;/html&gt;
+EOF
+		&log; exit;
+	}
+</pre>
+and run <code>configure</code> again as described
+<a href = "#cnfg">above</a> to make a new executable, then your
+new HTTPi will internally be able to handle URLs like
+<code>http://bletch/whoami?Cameron</code>, and respond with a cheery,
+friendly response. (Here's information on the <a href = "#glob">global
+variables</a> and <a href = "#func">functions</a> used here.)
+<p>
+A common idiom, and a nice way to test, is simply to have a line like this:
+<pre>
+	require "/home/user/testcode.pl";
+</pre>
+in <code>modules.in</code> to be able to modify server behaviour
+on the fly instantly while the server is running
+merely by changing <code>testcode.pl</code>.
+Because Perl must compile your code each time, unfortunately,
+this will degrade server performance to a variable degree. On the
+other hand, this can be exceptionally flexible, especially for testing
+code before making a final HTTPi build, or for those specialized
+applications where server programming needs to be altered in real time
+without stopping, rebuilding and restarting.
+Note that if there is a bug in your script, it may temporarily render HTTPi
+inoperable until it is fixed (but in most cases
+HTTPi should immediately start working again when it is). Since this is a
+<code>require</code>, remember to have your dynamic library return a true
+value.
+<p>
+In earlier versions,
+at this point in HTTPi's execution, no attempt had been made to find a
+valid file specification or check the restriction matrix and it
+was assumed you had
+a good idea of what your routine likes and doesn't like. As of 0.99, the
+restriction matrix checks now come first, so you may protect a module with,
+say, a password or an IP range restriction by putting an entry in the
+restriction matrix. In fact, this is how STATIOS
+is implemented by default. 
+<a name = "ufun"><h4>Customizing library
+functions and adding your own with <code>userfunc.in</code>
+(1.5 and up)</h4></a>
+Starting in 1.5, functions that are explicitly declared "user serviceable
+parts," along with custom global functions and subroutines, live in
+<code>userfunc.in</code>. (Before 1.5, these functions had to be maintained
+in <code>httpi.in</code> and merged between versions.)
+<p>
+In the <a href = "#func">function list</a> below, functions marked with
+(<code>userfunc.in</code>) are maintained in this file and you should make
+changes to them there rather than to <code>httpi.in</code>.
+<p>
+<code>userfunc.in</code> is not merely limited to tweaking built-in functions,
+of course; you can put additional new library functions into it, which will
+also be visible to anything that shares the HTTPi namespace -- code in
+<code>modules.in</code>,
+for example, or <a href = "#inpl">inline Perl blocks</a>
+or HTTPerl-based executables. These will also be portable across
+HTTPi upgrades, assuming no violent architectural changes.
+<p>
+Note that some functions in <code>userfunc.in</code>
+may be called by other internal HTTPi functions that are
+<i>not</i> in <code>userfunc.in</code>. For this reason, if you change the
+arguments or calling convention of these routines, you should make sure that
+the original method is still supported or you will need to change
+any calls to it from anywhere else in the file structure (and make those
+changes to future versions if needed). This can be a real pain. The moral of
+the story is, don't fix what ain't broke; leave alone what you can.
+<p>
+What you should <b>not</b> use <code>userfunc.in</code> for is directly
+executable code, as it is not guaranteed to execute when you expect it to
+(if it winds up executing at all). If you need to actually insert code and
+not merely a function, put it into <code>modules.in</code> as instructed
+above.
+<p>
+To make changes, simply edit <code>userfunc.in</code> and append your
+custom functions and/or edit the standard ones provided. Then,
+run <code>configure</code> again as described
+<a href = "#cnfg">above</a> to update your executable.
+<h4>External handler support (1.4 and up)</h4>
+Starting in 1.4 are the beginnings of designing your own external handlers to
+help reduce the need to depend on items "compiled" into HTTPi at
+configure-time. Only a constant stub appended to <code>modules.in</code>
+need be used; it can point to a handler that can vary freely. One example is
+the PHProxy, a handler that allows you to
+execute PHP scripts directly within HTTPi, and is included in the standard
+distribution with instructions in <code>tools/phproxy/</code> . Here is
+how its <code>modules.in</code> dispatch looks.
+<pre>
+	if ($address =~ /\.php$/i) {
+		$raddress = "/usr/local/bin/phproxy";
+		goto IRED;
+	}
+</pre>
+Assuming the condition is met (in this case, any request for a file ending
+in <code>.php</code>), the <code>$raddress</code> global is set to the
+location of the external handler (in this case 
+<code>/usr/local/bin/phproxy</code>). After this, the magic incantation
+<code>goto IRED;</code> short-circuits the logic used to handle standard
+files and executables, and goes directly to the section that serves
+a document. If <code>$raddress</code> references an executable (as expected,
+although it could also be a server-parsed document with inline Perl, or
+less frequently useful, a regular document), it will start execution.
+<p>
+Because this short-circuits a lot of logic (for several reasons: first and
+foremost simple installation and management; second, to allow custom
+behaviour; and third, for speed), your external handler is expected to be
+robust and do many of the services HTTPi would do for a regular file
+or executable access. This includes rejecting unsuitable requests (such
+as file not found, access denied, wrong format, etc.),
+handling security constraints, and delivering data back to the client.
+<p>
+The easiest way to give all this functionality to your handler is to
+write it in Perl, and enable HTTPerl at configure-time. While you could
+write your handler as a regular HTTPi executable or "quasi-NPH-CGI"
+and use <a href = "serve.html#exec">the subset of CGI environment
+variables HTTPi provides you</a> to obtain the relevant context and arguments,
+by enabling HTTPerl instead you will then
+have access to the entire library of HTTPi functions and globals to
+correctly handle a request in an expected manner. While a <a href =
+"#func">list of
+official globals and functions</a> is given below, in short, you will still
+have your original request in <code>$address</code>, the mountpoint of
+the web server in <code>$path</code> (to allow you to generate a true
+absolute path to a file), and you will still be able to call the various
+error subroutines to raise complaints to the client, as well as the
+New Security Model to appropriately handle UID/GID security. In fact,
+PHProxy requires HTTPerl be enabled to operate correctly.
+<p>
+<a name = "func"><h3>Functions in HTTPi</h3></a>
+Functions maintained in <a href = "#ufun"><b><code>userfunc.in</code></b></a>
+appear with the
+tag (<code>userfunc.in</code>) and the version they were first maintained
+there. All other functions are in <code>httpi.in</code> unless otherwise
+noted.
+<p>
+<b>Networking functions</b> (roughly ordered by appearance)
+<p>
+<dl>
+<dt><code>sub sock_to_host</code>
+<dd>This function takes the result of <code>getpeername(STDIN)</code> and
+turns it into a hostname. Used for the <code>log</code> subroutine and
+executable support. Normally handled by similarly named functions in
+<code>Socket.pm</code> and like-minded modules, but HTTPi has its own socket
+support built-in. Unlike 0.1, the current version is hardcoded to use the
+<code>STDIN</code> filehandle. A list of (<code>hostname, port, IP</code>) is
+returned; if hostname lookups are off, IP addresses
+are returned in both the hostname and IP address sections. In 1.4 and up,
+<code>sock_to_host</code> attempts to cache the results for future calls
+using the <code>$cache_ip $cache_hn $cache_port</code> globals. In
+<code>stunnel</code> under 1.6 and up, this function uses the environment
+variables provided by <code>stunnel</code> instead.
+<dt><code>sub absolver</code>
+<dd>1.5 and up; only valid if the "absolver" DNS option was selected
+during configuration. This function takes exactly the same arguments as
+the Perl internal function <code>gethostbyaddr</code>, but wraps the
+call in a timeout. If the "absolver" is not enabled, then the call is
+replaced by one to <code>gethostbyaddr</code> and <code>absolver</code>
+is not defined.
+</dl><p>
+<b>HTTP response functions</b> (roughly ordered by appearance)
+<dl>
+<dt><code>sub htsponse</code>
+<dd>This function takes two parameters, the HTTP response code (e.g. 200,
+404, 500, etc.), and a string; it then sends to the client the HTTP
+response header, the HTTPi custom headers, and the current date. Globals
+<code>$currentcode</code> and <code>$currentstring</code> are set with the
+response code and string respectively. This function silently exits if the
+HTTP version of the client is 0.9.
+<dt><code>sub hthead</code>
+<dd>This function takes two parameters, the header and an optional
+termination flag. The header is sent to the client, and if the termination
+flag is true (!= 0), the termination sequence <code>"\r\n"</code> is also
+sent to indicate the end of headers. The header will automatically have
+<code>"\r\n"</code> appended to it. This function silently exits if the
+HTTP version of the client is 0.9.
+<dt><code>sub htcontent</code>
+<dd>This function takes two parameters, the content itself (as a scalar)
+and the MIME content type. Global <code>$contentlength</code> is set with
+the length of the content scalar. The content length and content
+type are sent to the client with the <code>hthead</code> function (the
+content type having the termination flag set), and the content is then
+dumped to the client unless the current request method is <code>HEAD</code>.
+</dl><p>
+<b>HTTPi-internal functions</b> (roughly ordered by appearance)
+<dl>
+<dt><code>sub log</code>
+<dd>This function takes no parameters. It writes CERN log entries to the
+file specified in the global <code>$logfile</code>, and utilises globals
+<code>$hostname $httpref $date $method $address $variables $httpver $httpua
+$currentcode</code> and <code>$contentlength</code>, depending on the
+logging option specified during the <code>configure</code> process.
+<dt><code>sub bye</code>
+<dd>This function is called by default when HTTPi receives a
+<code>SIGALRM</code>. Currently, it just silently terminates HTTPi.
+<dt><code>sub byebye</code>
+<dd>1.5 and up. This function is called by default when HTTPi receives a
+<code>SIGTERM</code>. Currently, it just silently terminates HTTPi also.
+If a child process exists (Demonic HTTPi), it will terminate it first
+before terminating itself.
+<dt><code>sub dead</code>
+<dd>This function is called by default when HTTPi receives signals that
+would cause Perl to terminate (through the <code>__DIE__</code> pseudohandler).
+It logs a 500 error through <code>htsponse</code> and prints an
+error message with <code>hterror</code>.
+<dt><code>sub hterror</code> (<code>userfunc.in</code> since 1.5)
+<dd>This function is used to display the default formatted HTTPi error
+message. It assumes that <code>htsponse</code> has already been called to
+set the proper HTTP response code. It takes two arguments, a title and an
+explicatory string, then calls <code>htcontent</code> with an Apache-like
+formatted dump containing the title and explanation.
+<dt><code>sub hterror404, hterror301</code>
+(<code>userfunc.in</code> since 1.5)
+<dd>These are internal error subroutines that simply set
+error codes and call <code>hterror</code> with their messages.
+<dt><code>sub hterror401, hterror302</code>
+<dd>These are also internal error subroutines that simply set error codes and
+fall through to <code>hterror</code> with their messages. Due to their
+less frequent employment, these are maintained internally instead.
+<dt><code>sub nsecmodel</code>
+<dd>1.4 and up. This function manages security and juggles appropriate UID
+and GIDs for the owner of filehandle S. If the New Security Model is
+enabled, it enforces its constraints and, if possible, switches UID and
+GID to the owner of the file referenced by filehandle S. If the New
+Security Model is not enabled, it will only be invoked for executables,
+and only restrict to files not owned by UID or GID 0, although it will
+attempt to change UID and GID if it can. This function exists even if the
+New Security Model is not enabled. Globals <code>$gid</code> and
+<code>$uid</code> are set with the GID and UID, respectively, of the
+referenced document.
+<dt><code>sub defaultsignals</code>
+<dd>1.5 and up. This function abstracts changes to Perl's signaling
+introduced in Perl 5.8.1. In particular, if POSIX-based signaling was
+selected at configure time, the old <code>$SIG</code> method is replaced
+with calls to <code>POSIX::sigaction</code>. This function then asserts
+standard signal handlers (as mentioned above) using the requested method.
+<dt><code>sub alarmsignals</code>
+<dd>1.5 and up. This function also abstracts signaling, like
+<code>defaultsignals</code>, but specifically handles the case where
+<code>SIGALRM</code> is being used as a local timeout (such as in the
+"absolver", q.v.) rather than for the entire process state.
+<dt><code>sub master</code>
+<dd>Demonic only. This is the abstracted master function called by the
+socket accept loop at the end of <code>httpi.in</code>. It does not
+exist in the other versions as this is the main program
+instead, not simply a function called by the Demonic socket loop.
+<dt><code>sub rfctime</code>
+<dd>1.6 and up. This function takes at least one argument, which is then
+used to generate an RFC-compliant time string in GMT. If a single
+argument is passed, it is assumed to be a time integer and is 
+converted to a string in GMT, then processed. If the optional second
+argument is non-zero, the first argument is assumed to be already a time
+string in GMT (e.g., the output of <code>scalar gmtime</code>).
+</dl>
+<a name = "glob"><h3>Important Globals in HTTPi</h3></a>
+<table width = 100% cellpadding = 5 cellspacing = 2 border = 0>
+<tr><td bgcolor = "#ffe0e0">
+<b><code>&lt;S&gt;</code> and <code>&lt;NS&gt;</code> are HTTPi's control
+filehandles. Don't mess with them unless you know what you're doing!</b>
+</td></tr></table><p>
+<h4>Globals maintained in <a href = "#uvar"><code>uservar.in</code></a></h4>
+<dl>
+<dt><code>$headers</code>
+<dd>A simple scalar containing additional headers to be sent to the client.
+<dt><code>%content_types</code>
+<dd>A hash with file extensions as the keys and their respective MIME-types
+for values. Additional file extensions should be added here. If any entries
+conflict with keys in <code>%system_content_types</code> (see below), the
+entries in <code>%content_types</code> take precedence.
+<dt><code>%restrictions</code>
+<dd>The restriction matrix, specifying security options for HTTPi resources.
+See the <a href = "serve.html#secu">manual</a> for the format of values in this
+hash.
+<dt><code>%nameredir</code>
+<dd>The HTTP name redirect. See the <a href = "serve.html#htho">manual</a>
+for the format of values in this hash.
+<dt><code>%virtual_files</code>
+<dd>Definitions for the virtual filesystem. See the <a href =
+"serve.html#virt">manual</a> for the format of values in this hash.
+</dl>
+<h4>Globals maintained in <code>httpi.in</code></h4>
+<dl>
+<dt><code>$logfile, $path</code>
+<dd>Respectively, the absolute path of the logfile and the absolute path of
+the document directory. Set on startup.
+<dt><code>$currentcode, $currentstring</code>
+<dd>Respectively, the numerical HTTP response code (e.g. 200, 404, etc.), and
+the provided string (e.g. "OK", "File Not Found", etc.) Set by
+<code>htsponse</code>.
+<dt><code>$contentlength</code>
+<dd>Length of content passed to client. Set by <code>htcontent</code>.
+<dt><code>$rfcdate</code>
+<dd>The current date and time, in GMT and RFC format. In 1.6, this is
+generated by <code>rfctime</code>.
+<dt><code>$date</code>
+<dd>The current local date and time, in CERN log format.
+<dt><code>$statiosuptime, $statios*</code>
+<dd>Any variable starting with <code>$statios</code> is part of the Demonic
+STATIOS module, and is only defined when that module is enabled <i>except</i>
+for <code>$statiosuptime</code>, which defines the <code>time()</code> when
+the server was started and is always defined since many portions of code now
+reference it. <code>$statioslastsec</code> and <code>$statiosmaxsec</code>
+were added in 1.6.
+<dt><code>$method, $address, $httpver</code>
+<dd>Respectively, the HTTP method (e.g. GET), requested resource, and HTTP
+version (0.9, 1.0, 1.1). Set after receipt of a valid request from the
+client. 
+<dt><code>$raddress</code>
+<dd>The real, fully-qualified path to the resource desired, if it can be
+instantiated. Only set after restriction matrix checks are passed.
+<dt><code>$variables</code>
+<dd>The variables passed via the GET method to the server. Passed to an
+executable script through command line arguments (except for
+HTTPerl) and the <code>QUERY_STRING</code> environment variable.
+<dt><code>$httpref</code>
+<dd>Current HTTP referer, as specified by client (- if none given). Set after
+receipt of a valid <code>Referer</code> header from the client.
+<dt><code>$httpua</code>
+<dd>Current HTTP user agent/browser string, as specified by client (a
+null string if none
+given). Set after receipt of a valid <code>User-Agent</code> header from the
+client.
+<dt><code>$httprawu, $httpuser, $httppw</code>
+<dd>Respectively, the <code>base64</code>-encoded <code>Authorization</code>
+header string, and the decoded user and temporary space for the clear-text
+password. The
+first is set on receipt of a valid <code>Authorization</code> header; the
+others only set after restriction matrix checks are passed.
+<dt><code>$uid, $gid</code>
+<dd>Set by <code>nsecmodel</code> after analysis of the currently requested
+resource to the owner and GID of the requested resource.
+<dt><code>$cache_ip, $cache_hn, $cache_port</code>
+<dd>Set by <code>sock_to_host</code> in 1.4 and up after execution to
+cache DNS reverse lookups.
+<dt><code>$mtime</code>
+<dd>Last modify date of the currently selected resource as indicated by
+<code>$address</code>; set after successfully verifying resource's existence
+and a successful <code>stat()</code>. Prior to 1.6 this was a simple string
+in <code>ctime()</code> format, but in 1.6 and up is generated using
+<code>rfctime</code> to make <code>If-Modified-Since</code>
+exact prefix comparison simple.
+<dt><code>%system_content_types</code>
+<dd>Holding area for content types defined in <code>httpi.in</code> and
+thus maintained as part of the basic distribution. It is merged with
+<code>%content_types</code> and then destroyed.
+</dl>
+<a name="inpl"><h3>Inline Perl with the <code>&lt;perl&gt;</code> Tag</h3></a>
+The inline Perl module, introduced in HTTPi 1.0, is simultaneously
+the most useful and the most abhorrent feature of HTTPi. As much as it
+affords you power and flexibility, it also adds a modicum of security
+leaks, idiosyncracies and stability issues, and that's why it's not
+enabled by default. The warnings below are just the ones <i>the
+programmer</i> knows of.
+<p>
+In short, you can execute arbitrary Perl code inside any document with an
+<code>.sht</code>, <code>.shtm</code> or <code>.shtml</code> extension
+by placing it within <code>&lt;perl&gt;&lt;/perl&gt;</code> tags. Whatever
+your code <code>return</code>s gets displayed to the client.
+If you have been <s>stupid</s> bold enough to try the inline Perl option,
+be advised of several important issues:
+<ul>
+<li>You have a tremendous security hole if you enable the user filesystem.
+Any user can do just about any Perl operation with the webserver's UID.
+While the New Security Model can help contain documents containing inline
+Perl blocks owned by a user to
+run with only their privileges, not the webserver's, this only happens if the
+webserver is running as <code>root</code>.
+<li>You can do <i>almost</i> anything in the Perl tags that you can do in
+regular Perl.
+<li>You have a tremendous security hole if you enable the user filesystem.
+Any user can do just about any Perl operation with the webserver's UID.
+While the New Security Model can help contain documents containing inline
+Perl blocks owned by a user to
+run with only their privileges, not the webserver's, this only happens if the
+webserver is running as <code>root</code>.
+<li>You have complete access to the server internals within the Perl tag.
+While you cannot affect the server itself or crash it, since you're in a
+child process and not the Demonic server or <code>(x)inetd</code>, you can
+seriously tank the current instance. You can also make complete use of all
+globals, functions and states, and manipulate them to any possible extent.
+<li>You have a tremen ... get the point by now?
+</ul>
+Here's <a href = "sperl.shtml">a brief example of inline Perl</a> that
+demonstrates grabbing HTTPi internals, calling HTTPi internal functions
+and some Perl expressions. (Code is provided.)
+<p>
+The page above (<code>sperl.shtml</code>) is very simple and easy, and
+armed with the list of globals and functions above, you can manipulate them
+in any way you see fit. Of course,
+you're not limited to evaluating arbitrary expressions. Try this (code
+also provided):
+<p>
+<b>Did you like Mission: Impossible?</b>
+<a href = "imf.shtml?yes">Yes</a> |
+<a href = "imf.shtml?no">No</a>
+<p>
+The code responsible for the above page (<code>imf.shtml</code>) introduces
+two functions
+that only are added to HTTPi when you enable preparsing. These functions
+allow you to store up output into a buffer so you can "print" without
+messing up HTTPi's output stream. This is important because your inline Perl
+is executing before HTTPi has completely finished emitting headers, and
+a naked <code>print</code> will corrupt the HTTP headers and probably cause
+some client confusion.
+So, instead of <code>print</code>ing, call <code>&amp;output</code> with the
+string, which will emit into a buffer <code>$fbuf</code> (or do this
+yourself). When you're done, just <code>return &amp;flush();</code>, which
+returns and flushes the buffer. You can see this in <code>imf.shtml</code>, so
+look at it if you haven't already.
+<p>
+In 1.4, file manipulation "primitives" have been included allowing you to
+sling entire files around and build a library of pieces which can be all
+tied together at service time. The <code>&amp;include</code> function, also
+only present if preparsing is enabled, accepts a <i>fully-qualified (not
+relative)</i> path to a file, and directly inserts into the buffer, just
+as if you had used <code>&amp;output</code> to display its contents, but
+<code>&amp;include</code> takes care of all the opening and slurping of its
+data for you. As always, just <code>return &amp;flush();</code> to return
+and flush the buffer. If you just want to insert a single file and nothing
+else, <code>&amp;finclude()</code> does all this for you. Check out
+<a href = "sfperl.shtml">this example</a>.
+<p>
+If <code>&amp;include</code> cannot include the file, it will quietly
+insert a comment in HTML <code>&lt;!-- --&gt;</code> tags containing the
+error message.
+<p>
+You can also include a file containing additional inline Perl blocks, and
+this file will be interpreted as if it were part of the original file. This
+lets you build an entire library of code components you can assemble together
+at a whim, with a central point for easy system-wide changes. For
+purposes of the New Security Model, any files you include are operated with
+the UID of the original file's owner if the New Security Model is enabled,
+so be sure you trust the source of files that you include into yours.
+<p>
+Errors get caught by HTTPi's <code>__DIE__</code> handler. Of course, if
+this bugs you, you could alter this right in your inline Perl by introducing
+an anonymous subroutine reference. However, a much better way would be to
+rebuild a custom HTTPi yourself with a new handler rather than make such a
+change "locally".
+<p>
+It has been mentioned that there are some things you cannot do in inline Perl.
+One of them is, as stated, using <code>print</code> (or, for that matter,
+<code>warn</code>). Note that you can use <code>print</code> to print to a
+filehandle, but just not to <code>stdout</code>. You also cannot have
+a literal <code>&lt;/perl&gt;</code> or <code>&lt;perl&gt;</code> in your
+code, since the preparser is
+not too bright; you'll need to cleverly escape it or break it up, which
+shouldn't be too hard.
+(Just like you can use the file-manipulation functions to include and
+execute another file with inline Perl blocks,
+it is fully possible to have an inline Perl block create another inline
+Perl block, which will be executed as if it were there in the first place,
+too.
+The possibilities for recursion are entertaining and somewhat disturbing,
+so this exercise is left to the reader.)
+<p>
+Also, anything that will affect the server process will
+probably cause unforseen results. If you decide to <code>use</code> or
+<code>require</code> arbitrary code in your inline Perl block, make sure
+it doesn't conflict with HTTPi. While you can't break the master server or
+bring it down, thanks to process isolation, you will probably get very
+inexplicable results out of your document if your module starts treading on
+HTTPi's rather large namespace (and vice versa). In general, loading modules in
+inline Perl blocks is not recommended: for such an application, use an
+executable instead.
+<hr>
+<address>Cameron Kaiser</address>
+</body>
+</html>
