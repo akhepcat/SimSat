@@ -20,6 +20,8 @@ RATE="${RATE:-1000mbit}"
 #
 #
 
+PATH=/bin:/sbin:/usr/bin:/usr/sbin:${PATH}
+
 DEFIF=$(awk 'BEGIN { IGNORECASE=1 } /^[a-z0-9]+[ \t]+00000000/ { print $1 }' /proc/net/route)
 MyIntIPv4=$(ip -o -4 addr show dev $DEFIF scope global)
 MyIntIPv4=${MyIntIPv4##*inet }

@@ -2,6 +2,7 @@
 declare -a AVAIL
 declare -a IFACES
 declare -a BRIDGE
+PATH=/bin:/sbin:/usr/bin:/usr/sbin:${PATH}
 
 usage() {
 	echo "status|show|find -  shows the status of any bridges, assigned, and available interfaces"
