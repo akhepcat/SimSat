@@ -3,10 +3,11 @@ PROG="${0##*/}"
 ########################################
 ##  Change only these variables 
 
-DELAY="delay 10ms 10ms distribution normal"	# delay across both interfaces is 600ms +/1 20ms with "delay 300ms 10ms" default
-LOSS="loss 0.000001% 25%"
-CORRUPT="corrupt 0.000001%"
-RATE="1000mbit"
+# delay across both interfaces is 600ms +/1 20ms with "delay 300ms 10ms" default
+DELAY="${DELAY:-delay 10ms 10ms distribution normal}"
+LOSS="${LOSS:-loss 0.000001% 25%}"
+CORRUPT="${CORRUPT:-corrupt 0.000001%}"
+RATE="${RATE:-1000mbit}"
 
 ## Change nothing below
 ###########################################################################
