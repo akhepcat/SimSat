@@ -4,7 +4,8 @@ To utilize this Web-PHP front-end:
   * Most easily accomplished via `$ sudo cd /usr/local && git clone https://github.com/akhepcat/SimSat.git`
 2. Install Apache2 and PHP5
   * `$ sudo apt-get install apache2 php5 libapache2-mod-php5`
-3. Add the following lines to sudoers (run `$ visudo`)
+3. Copy or move `index.php` to `/var/www/html` and verify it is readable/executable by the www-data user
+4. Add the following lines to sudoers (run `$ visudo`)
 
 ```
 Defaults        env_keep += "DELAY"
