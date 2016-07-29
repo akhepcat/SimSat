@@ -158,6 +158,7 @@ usage() {
 	echo -e " \t status \t shows the current delay, loss, and rate-limiting on the bridge"
 	echo -e " \t  debug \t shows what would be applied to the bridge"
 	echo -e " \t  units \t help for adjusting the parameters"
+	echo -e " \tmodules \t check for required kernel module availabilty"
 	echo -e ""
 	echo -e " \tBRIDGE is currently defined as: ${IFACES}"
 
@@ -170,8 +171,13 @@ check_modules() {
 		if [ $? -ne 0 ]
 		then
 			echo "module ${module} not available on the system"
+			NEEDED=1
 		fi
 	done
+	if [ ${NEEDED:-0} -eq 0 ];
+	then
+		echo "no required modules missing"
+	fi
 }
 
 case ${1} in
