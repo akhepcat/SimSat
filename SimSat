@@ -160,6 +160,16 @@ usage() {
 
 }
 
+check_modules() {
+	for module in cls_fw sch_hfsc sch_sfq sch_red sch_htb sch_ingress
+	do
+		modinfo ${module} >/dev/null 2>&1
+		if [ $? -ne 0 ]
+		then
+			echo "module ${module} not available on the system"
+		fi
+	done
+}
 
 case ${1} in
 	stop) stop
@@ -173,6 +183,8 @@ case ${1} in
 	units) units
 		;;
 	debug) debug
+		;;
+	modules) check_modules
 		;;
 	*) usage
 		;;
