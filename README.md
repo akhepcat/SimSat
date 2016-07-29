@@ -60,6 +60,7 @@ for a brief description of the syntax.  Then have-at.
 
 "SimSat stop" will stop the simulator and restore full-speed across the bridge.
 
+"SimSat modules"  will check to make sure you've got all the appropriate modules available and warn otherwise.
 
 If it breaks your system, delivers penguin babies to your mother-in-law, or disassembles your dog,
 I'm very sorry.  Just put the peices into a box and bury it, then stop using the software.
