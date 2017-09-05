@@ -1,7 +1,9 @@
 #!/bin/bash
 PROG="${0##*/}"
 ########################################
-##  Change only these variables 
+##  Change only these variables via the default config file, or via command-line
+
+test -r /etc/default/SimSat && . /etc/default/SimSat
 
 # delay across both interfaces is 600ms +/1 20ms with "delay 300ms 10ms" default
 DELAY="${DELAY:-delay 10ms 10ms distribution normal}"
@@ -33,7 +35,15 @@ then
 fi
 IFACES=$(brctl show $DEFIF 2>&1 | sed -n 's/.*\(eth[0-9]*\).*/\1/gp' | tr '\n' ' ')
 
+save_config() {
+	cat >/etc/default/SimSat <<EOF
+DELAY="${DELAY}"
+LOSS="${LOSS}"
+CORRUPT="${CORRUPT}"
+RATE="${RATE}"
+EOF
 
+}
 
 stop() {
 	for IFACE in $IFACES
@@ -192,6 +202,8 @@ case ${1} in
 	units) units
 		;;
 	debug) debug
+		;;
+	save) save_config
 		;;
 	modules) check_modules
 		;;
