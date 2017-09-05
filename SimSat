@@ -1,9 +1,10 @@
 #!/bin/bash
 PROG="${0##*/}"
+CONFIG=/etc/default/SimSat
 ########################################
 ##  Change only these variables via the default config file, or via command-line
 
-test -r /etc/default/SimSat && . /etc/default/SimSat
+test -r ${CONFIG} && . ${CONFIG}
 
 # delay across both interfaces is 600ms +/1 20ms with "delay 300ms 10ms" default
 DELAY="${DELAY:-delay 10ms 10ms distribution normal}"
@@ -35,8 +36,12 @@ then
 fi
 IFACES=$(brctl show $DEFIF 2>&1 | sed -n 's/.*\(eth[0-9]*\).*/\1/gp' | tr '\n' ' ')
 
+unsave_config() {
+	rm -f ${CONFIG}
+}
+
 save_config() {
-	cat >/etc/default/SimSat <<EOF
+	cat >${CONFIG} <<EOF
 DELAY="${DELAY}"
 LOSS="${LOSS}"
 CORRUPT="${CORRUPT}"
@@ -169,6 +174,8 @@ usage() {
 	echo -e " \t  debug \t shows what would be applied to the bridge"
 	echo -e " \t  units \t help for adjusting the parameters"
 	echo -e " \tmodules \t check for required kernel module availabilty"
+	echo -e " \t unsave \t remove existing persistent config file"
+	echo -e " \t   save \t save current settings to persistent config file (${CONFIG})"
 	echo -e ""
 	echo -e " \tBRIDGE is currently defined as: ${IFACES}"
 
@@ -204,6 +211,8 @@ case ${1} in
 	debug) debug
 		;;
 	save) save_config
+		;;
+	unsave) unsave_config
 		;;
 	modules) check_modules
 		;;
