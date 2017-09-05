@@ -16,20 +16,20 @@
 <?php
 
 # If submitted, set new values
-if( ! empty( $_GET ) ){
+if( ! empty( $_POST ) ){
   if(
-    is_numeric( $_GET['delay'] ) &&
-    is_numeric( $_GET['delayPlusMinus'] ) &&
-    is_numeric( $_GET['loss'] ) &&
-    is_numeric( $_GET['lossPlusMinus'] ) &&
-    is_numeric( $_GET['corrupt'] ) &&
-    is_numeric( $_GET['rate'] )
+    is_numeric( $_POST['delay'] ) &&
+    is_numeric( $_POST['delayPlusMinus'] ) &&
+    is_numeric( $_POST['loss'] ) &&
+    is_numeric( $_POST['lossPlusMinus'] ) &&
+    is_numeric( $_POST['corrupt'] ) &&
+    is_numeric( $_POST['rate'] )
   ){
     # Delay, Loss, and Corrupt are halved as they occur twice (in & out).
-    $delayVar = "delay ".sprintf( "%f", ( (float) $_GET['delay'] )/2)."ms ".sprintf( "%f", ( (float) $_GET['delayPlusMinus'])/2)."ms distribution normal";
-    $lossVar = "loss ".sprintf( "%f", ( (float) $_GET['loss'] )/2)."% ".sprintf( "%f", ( (float) $_GET['lossPlusMinus'])/2)."%";
-    $corruptVar = "corrupt ".sprintf( "%f", ( (float) $_GET['corrupt'] )/2)."%";
-    $rateVar = $_GET['rate'].$_GET['rateUnit'];
+    $delayVar = "delay ".sprintf( "%f", ( (float) $_POST['delay'] )/2)."ms ".sprintf( "%f", ( (float) $_POST['delayPlusMinus'])/2)."ms distribution normal";
+    $lossVar = "loss ".sprintf( "%f", ( (float) $_POST['loss'] )/2)."% ".sprintf( "%f", ( (float) $_POST['lossPlusMinus'])/2)."%";
+    $corruptVar = "corrupt ".sprintf( "%f", ( (float) $_POST['corrupt'] )/2)."%";
+    $rateVar = $_POST['rate'].$_POST['rateUnit'];
 
     $simsatPath = "/usr/local/SimSat/SimSat";
     $cmdVarsStr = "DELAY=\"$delayVar\" LOSS=\"$lossVar\" CORRUPT=\"$corruptVar\" RATE=\"$rateVar\" ";
@@ -79,7 +79,7 @@ foreach( $output as $line ){
 
 <div class="container-fluid">
   <div class="row">
-    <form method="get" role="form">
+    <form method="post" role="form">
      <div class="form-group">
       <div class="col-md-1">
         <label for="delay">Delay</label>
