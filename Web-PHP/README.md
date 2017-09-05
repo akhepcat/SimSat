@@ -14,5 +14,3 @@ Defaults        env_keep += "CORRUPT"
 Defaults        env_keep += "RATE"
 www-data ALL = NOPASSWD: /usr/local/SimSat/SimSat
 ```
-
-Note that at this time changing settings via Web-PHP do not persist through a reboot.

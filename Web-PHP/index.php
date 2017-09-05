@@ -34,14 +34,22 @@ if( ! empty( $_POST ) ){
     $simsatPath = "/usr/local/SimSat/SimSat";
     $cmdVarsStr = "DELAY=\"$delayVar\" LOSS=\"$lossVar\" CORRUPT=\"$corruptVar\" RATE=\"$rateVar\" ";
 
-    $result = exec( "sudo $simsatPath stop", $output );
-    $result = exec( "sudo $cmdVarsStr $simsatPath start", $output );
+    if( isset( $_POST['save_config'] ) && 'save_config' == $_POST['save_config'] ){
+      # save the current parameters
+      $result = exec( "sudo $cmdVarsStr $simsatPath save", $output );
+      $notifications = 'Configuration has been saved to disk.';
+    } elseif ( $_POST['start'] ) && 'start' == $_POST['start'] ){
+      # start with new parameters that haven't been saved yet...
+      $result = exec( "sudo $simsatPath stop", $output );
+      $result = exec( "sudo $cmdVarsStr $simsatPath start", $output );
+    }
   }
   if( isset( $_POST['delete_config'] ) && 'delete_config' == $_POST['delete_config'] ){
     exec( "sudo $simsatPath unsave" );
     $notifications = 'Configuration has been deleted from disk.';
   }
   if( isset( $_POST['start'] ) && 'start' == $_POST['start'] ){
+    # start with saved parameters only 
     exec( "sudo $simsatPath start" );
     $notifications = 'SimSat has been started.';
   }
@@ -88,19 +96,6 @@ foreach( $output as $line ){
 }
 
 
-if( ! empty( $_POST ) && isset( $_POST['save_config'] ) && 'save_config' == $_POST['save_config'] ){
-    # Delay, Loss, and Corrupt are halved as they occur twice (in & out).
-    $delayVar = "delay ".sprintf( "%f", ( (float) $cfg['delay'] )/2)."ms ".sprintf( "%f", ( (float) $cfg['delayPlusMinus'])/2)."ms distribution normal";
-    $lossVar = "loss ".sprintf( "%f", ( (float) $cfg['loss'] )/2)."% ".sprintf( "%f", ( (float) $cfg['lossPlusMinus'])/2)."%";
-    $corruptVar = "corrupt ".sprintf( "%f", ( (float) $cfg['corrupt'] )/2)."%";
-    $rateVar = $cfg['rate'].$cfg['rateUnit'];
-
-    $simsatPath = "/usr/local/SimSat/SimSat";
-    $cmdVarsStr = "DELAY=\"$delayVar\" LOSS=\"$lossVar\" CORRUPT=\"$corruptVar\" RATE=\"$rateVar\" ";
-
-    $result = exec( "sudo $cmdVarsStr $simsatPath save", $output );
-    $notifications = 'Configuration has been saved to disk.';
-}
 ?>
 
 <div class="container-fluid">
