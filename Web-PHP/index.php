@@ -37,6 +37,18 @@ if( ! empty( $_POST ) ){
     $result = exec( "sudo $simsatPath stop", $output );
     $result = exec( "sudo $cmdVarsStr $simsatPath start", $output );
   }
+  if( isset( $_POST['delete_config'] ) && 'delete_config' == $_POST['delete_config'] ){
+    exec( "sudo $simsatPath unsave" );
+    $notifications = 'Configuration has been saved to disk.';
+  }
+  if( isset( $_POST['start'] ) && 'start' == $_POST['start'] ){
+    exec( "sudo $simsatPath start" );
+    $notifications = 'SimSat has been started.';
+  }
+  if( isset( $_POST['stop'] ) && 'stop' == $_POST['stop'] ){
+    exec( "sudo $simsatPath stop" );
+    $notifications = 'SimSat has been stopped.';
+  }
 }
 
 # Defaults
@@ -75,9 +87,30 @@ foreach( $output as $line ){
   }
 }
 
+
+if( ! empty( $_POST ) && isset( $_POST['save_config'] ) && 'save_config' == $_POST['save_config'] ){
+    # Delay, Loss, and Corrupt are halved as they occur twice (in & out).
+    $delayVar = "delay ".sprintf( "%f", ( (float) $cfg['delay'] )/2)."ms ".sprintf( "%f", ( (float) $cfg['delayPlusMinus'])/2)."ms distribution normal";
+    $lossVar = "loss ".sprintf( "%f", ( (float) $cfg['loss'] )/2)."% ".sprintf( "%f", ( (float) $cfg['lossPlusMinus'])/2)."%";
+    $corruptVar = "corrupt ".sprintf( "%f", ( (float) $cfg['corrupt'] )/2)."%";
+    $rateVar = $cfg['rate'].$cfg['rateUnit'];
+
+    $simsatPath = "/usr/local/SimSat/SimSat";
+    $cmdVarsStr = "DELAY=\"$delayVar\" LOSS=\"$lossVar\" CORRUPT=\"$corruptVar\" RATE=\"$rateVar\" ";
+
+    $result = exec( "sudo $cmdVarsStr $simsatPath save", $output );
+    $notifications = 'Configuration has been saved to disk.';
+}
 ?>
 
 <div class="container-fluid">
+<?php if( isset( $notifications ) ){
+    echo '<div class="row">';
+    echo '<div class="col-md-12 alert alert-warning">';
+    echo $notifications; }
+    echo '</div>';
+    echo '</div>';
+?>
   <div class="row">
     <form method="post" role="form">
      <div class="form-group">
@@ -118,6 +151,42 @@ foreach( $output as $line ){
       <div class="col-md-1">
         <label for=""></label>
         <input class="form-control" type="submit" value="Update" />
+      </div>
+     </div>
+    </form>
+    <form method="post" role="form">
+     <div class="form-group">
+      <div class="col-md-1">
+        <label for=""></label>
+        <input name='save_config' type='hidden' value='save_config' />
+        <input class="form-control" type="submit" value="Save Config to Disk" />
+      </div>
+     </div>
+    </form>
+    <form method="post" role="form">
+     <div class="form-group">
+      <div class="col-md-1">
+        <label for=""></label>
+        <input name='delete_config' type='hidden' value='delete_config' />
+        <input class="form-control" type="submit" value="Delete Config on Disk" />
+      </div>
+     </div>
+    </form>
+    <form method="post" role="form">
+     <div class="form-group">
+      <div class="col-md-1">
+        <label for=""></label>
+        <input name='start' type='hidden' value='start' />
+        <input class="form-control" type="submit" value="Start" />
+      </div>
+     </div>
+    </form>
+    <form method="post" role="form">
+     <div class="form-group">
+      <div class="col-md-1">
+        <label for=""></label>
+        <input name='stop' type='hidden' value='stop' />
+        <input class="form-control" type="submit" value="Stop" />
       </div>
      </div>
     </form>
