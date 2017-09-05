@@ -39,7 +39,7 @@ if( ! empty( $_POST ) ){
   }
   if( isset( $_POST['delete_config'] ) && 'delete_config' == $_POST['delete_config'] ){
     exec( "sudo $simsatPath unsave" );
-    $notifications = 'Configuration has been saved to disk.';
+    $notifications = 'Configuration has been deleted from disk.';
   }
   if( isset( $_POST['start'] ) && 'start' == $_POST['start'] ){
     exec( "sudo $simsatPath start" );
