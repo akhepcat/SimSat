@@ -4,8 +4,13 @@ CONFIG=/etc/default/SimSat
 ########################################
 ##  Change only these variables via the default config file, or via command-line
 
-test -r ${CONFIG} && . ${CONFIG}
+# Only read defaults when nothing is provided...
+if [ -z "${DELAY}" -a -z "${LOSS}" -a -z "${CORRUPT}" -a -z "${RATE}" ]
+then
+	test -r ${CONFIG} && . ${CONFIG}
+fi
 
+# add sane defaults for any missing values
 # delay across both interfaces is 600ms +/1 20ms with "delay 300ms 10ms" default
 DELAY="${DELAY:-delay 10ms 10ms distribution normal}"
 LOSS="${LOSS:-loss 0.000001% 25%}"
