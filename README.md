@@ -52,9 +52,11 @@ and then displace the status of the bridges
 If you went this route, and now have a bridge with two interfaces, you can start
 to use SimSat!
 
-Again, SimSat is also very stupid, and currently the variables are hard-coded at
-the top of the script.  If you're interested in changing them, run "SimSat units"
-for a brief description of the syntax.  Then have-at.
+Again, SimSat is also very stupid, and currently the variables are hard-coded and
+saved in /etc/default/SimSat.  If you're interested in changing them, run "SimSat units"
+for a brief description of the syntax.  Then have-at.  A  *very* basic web interface (thanks, aksnowman)
+is available, and should control the SimSat side of the kit in a bare fashion.  But it makes
+for an easier plug-and-play on a raspberry pi, dunnit?
 
 "SimSat start"  will enable the simulator across the bridge.
 
