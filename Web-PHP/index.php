@@ -34,27 +34,28 @@ if( ! empty( $_POST ) ){
 
     $cmdVarsStr = "DELAY=\"$delayVar\" LOSS=\"$lossVar\" CORRUPT=\"$corruptVar\" RATE=\"$rateVar\" ";
 
-    if( isset( $_POST['save_config'] ) && 'save_config' == $_POST['save_config'] ){
+    if( isset( $_POST['save_config'] ) && 'Save Config' == $_POST['save_config'] ){
       # save the current parameters
-      $result = exec( "sudo $cmdVarsStr $simsatPath save", $output );
+      $result = exec( "$cmdVarsStr $simsatPath save", $output );
       $notifications = 'Configuration has been saved to disk.';
-    } elseif ( isset( $_POST['start'] )  && 'start' == $_POST['start'] ){
+    } elseif ( (isset( $_POST['start'] ) || isset( $_POST['update'] ))  && ('Start' == $_POST['start'] || 'Update' == $_POST['update']) ){
       # start with new parameters that haven't been saved yet...
-      $result = exec( "sudo $simsatPath stop", $output );
-      $result = exec( "sudo $cmdVarsStr $simsatPath start", $output );
+      $result = exec( "$simsatPath stop", $output );
+      $result = exec( "$cmdVarsStr $simsatPath start", $output );
+      $notifications = 'Applied new configuration.';
     }
   }
-  if( isset( $_POST['delete_config'] ) && 'delete_config' == $_POST['delete_config'] ){
-    exec( "sudo $simsatPath unsave" );
+  if( isset( $_POST['delete_config'] ) && 'Delete Config' == $_POST['delete_config'] ){
+    exec( "$simsatPath unsave" );
     $notifications = 'Configuration has been deleted from disk.';
   }
-  if( isset( $_POST['start'] ) && 'start' == $_POST['start'] ){
+  if( isset( $_POST['start'] ) && 'Start' == $_POST['start'] ){
     # start with saved parameters only 
-    exec( "sudo $simsatPath start" );
+    exec( "$simsatPath start" );
     $notifications = 'SimSat has been started.';
   }
-  if( isset( $_POST['stop'] ) && 'stop' == $_POST['stop'] ){
-    exec( "sudo $simsatPath stop" );
+  if( isset( $_POST['stop'] ) && 'Stop' == $_POST['stop'] ){
+    exec( "$simsatPath stop" );
     $notifications = 'SimSat has been stopped.';
   }
 }
@@ -148,6 +149,7 @@ foreach( $output as $line ){
   </div>
 
   <div class="row">
+    <div class="form-group">
       <div class="col-md-1">
         <label for=""></label>
         <input class="form-control" name="update" type="submit" value="Update" />
@@ -172,7 +174,7 @@ foreach( $output as $line ){
         <label for=""></label>
         <input class="form-control" name="stop" type="submit" value="Stop" />
       </div>
-  
+    </div>  
   </div>
   </form>
 </div>
