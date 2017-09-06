@@ -14,6 +14,7 @@
 </head>
 <body>
 <?php
+    $simsatPath = "/usr/local/SimSat/SimSat";
 
 # If submitted, set new values
 if( ! empty( $_POST ) ){
@@ -31,14 +32,13 @@ if( ! empty( $_POST ) ){
     $corruptVar = "corrupt ".sprintf( "%f", ( (float) $_POST['corrupt'] )/2)."%";
     $rateVar = $_POST['rate'].$_POST['rateUnit'];
 
-    $simsatPath = "/usr/local/SimSat/SimSat";
     $cmdVarsStr = "DELAY=\"$delayVar\" LOSS=\"$lossVar\" CORRUPT=\"$corruptVar\" RATE=\"$rateVar\" ";
 
     if( isset( $_POST['save_config'] ) && 'save_config' == $_POST['save_config'] ){
       # save the current parameters
       $result = exec( "sudo $cmdVarsStr $simsatPath save", $output );
       $notifications = 'Configuration has been saved to disk.';
-    } elseif ( $_POST['start'] ) && 'start' == $_POST['start'] ){
+    } elseif ( isset( $_POST['start'] )  && 'start' == $_POST['start'] ){
       # start with new parameters that haven't been saved yet...
       $result = exec( "sudo $simsatPath stop", $output );
       $result = exec( "sudo $cmdVarsStr $simsatPath start", $output );
@@ -106,8 +106,8 @@ foreach( $output as $line ){
     echo '</div>';
     echo '</div>';
 ?>
+  <form method="post" role="form">
   <div class="row">
-    <form method="post" role="form">
      <div class="form-group">
       <div class="col-md-1">
         <label for="delay">Delay</label>
@@ -143,50 +143,38 @@ foreach( $output as $line ){
           <option value="bps"<?php echo ( $cfg['rateUnit'] == "bps" ? " selected='selected'" : ""); ?>>bps (Bytes per second)</option>
         </select>
       </div>
+
+     </div>
+  </div>
+
+  <div class="row">
       <div class="col-md-1">
         <label for=""></label>
-        <input class="form-control" type="submit" value="Update" />
+        <input class="form-control" name="update" type="submit" value="Update" />
       </div>
-     </div>
-    </form>
-    <form method="post" role="form">
-     <div class="form-group">
+
       <div class="col-md-1">
         <label for=""></label>
-        <input name='save_config' type='hidden' value='save_config' />
-        <input class="form-control" type="submit" value="Save Config to Disk" />
+        <input class="form-control" name="save_config" type="submit" value="Save Config" />
       </div>
-     </div>
-    </form>
-    <form method="post" role="form">
-     <div class="form-group">
+
       <div class="col-md-1">
         <label for=""></label>
-        <input name='delete_config' type='hidden' value='delete_config' />
-        <input class="form-control" type="submit" value="Delete Config on Disk" />
+        <input class="form-control" name="delete_config" type="submit" value="Delete Config" />
       </div>
-     </div>
-    </form>
-    <form method="post" role="form">
-     <div class="form-group">
+
       <div class="col-md-1">
         <label for=""></label>
-        <input name='start' type='hidden' value='start' />
-        <input class="form-control" type="submit" value="Start" />
+        <input class="form-control" name="start" type="submit" value="Start" />
       </div>
-     </div>
-    </form>
-    <form method="post" role="form">
-     <div class="form-group">
+
       <div class="col-md-1">
         <label for=""></label>
-        <input name='stop' type='hidden' value='stop' />
-        <input class="form-control" type="submit" value="Stop" />
+        <input class="form-control" name="stop" type="submit" value="Stop" />
       </div>
-     </div>
-    </form>
   
   </div>
+  </form>
 </div>
 
 </body>
