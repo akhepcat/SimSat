@@ -32,18 +32,24 @@ findem () {
 	        DEFIF=""
 	fi
 
-	IFACES=($(brctl show $DEFIF 2>&1 | grep -oP '(eno|eth)[0-9a-f]+(?=:)' | tr '\n' ' '))
+	IFACES=($(brctl show $DEFIF 2>&1 | grep -oP '((eno|eth)[0-9a-f]+|enp\d+s\d+)' | tr '\n' ' '))
 	BRIDGES=($(brctl show | sed -n 's/^\(br[0-9]\+\).*/\1/gp'))
 	BRNUM=${#BRIDGES[@]}
 
 	if [ ${BRNUM:-0} -gt 0 ]
 	then
 		FILTER="${IFACES[*]} ${BRIDGES[*]}"
-		FILTER="${FILTER//[[:space:]]/|}"
+		words=( $FILTER )
+		if [ ${#words[@]} -gt 1 ]
+		then
+			FILTER="${FILTER//[[:space:]]/|}"
+		else
+			FILTER="${FILTER//[[:space:]]/}"
+		fi
 
-		AVAIL=($(ip -o link show | grep ether | grep -Evi "$FILTER" | grep -oP '(eno|eth)[0-9a-f]+(?=:)' | tr '\n' ' '))
+		AVAIL=($(ip -o link show | grep ether | grep -Evi "$FILTER" | grep -oP '((eno|eth)[0-9a-f]+|enp\d+s\d+)(?=:)' | tr '\n' ' '))
 	else
-		AVAIL=($(ip -o link show | grep ether | grep -oP '(eno|eth)[0-9a-f]+(?=:)' | tr '\n' ' '))
+		AVAIL=($(ip -o link show | grep ether | grep -oP '((eno|eth)[0-9a-f]+|enp\d+s\d+)(?=:)' | tr '\n' ' '))
 	fi
 }
 
