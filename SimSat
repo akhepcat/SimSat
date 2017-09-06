@@ -39,7 +39,7 @@ if [ -n "${DEFIF##*br*}" ]
 then
 	DEFIF=""
 fi
-IFACES=$(brctl show $DEFIF 2>&1 | sed -n 's/.*\(eth[0-9]*\).*/\1/gp' | tr '\n' ' ')
+IFACES=$(brctl show $DEFIF 2>&1 | grep -oP '(eno|eth)[0-9a-f]+(?=:)' | tr '\n' ' ')
 
 unsave_config() {
 	rm -f ${CONFIG}
